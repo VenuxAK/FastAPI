@@ -5,8 +5,8 @@ from sqlalchemy import Select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-import fastapi_blog.models
 from fastapi_blog.database import get_db
+from fastapi_blog.models import Post, User
 from fastapi_blog.schemas import PostCreate, PostResponse, PostUpdate
 
 router = APIRouter()
@@ -17,11 +17,7 @@ router.prefix = "/posts"
 # Get Posts
 @router.get("", response_model=list[PostResponse], status_code=status.HTTP_200_OK)
 async def get_all_posts(db: Annotated[AsyncSession, Depends(get_db)]):
-    result = await db.execute(
-        Select(fastapi_blog.models.Post).options(
-            selectinload(fastapi_blog.models.Post.author)
-        )
-    )
+    result = await db.execute(Select(Post).options(selectinload(Post.author)))
     posts = result.scalars().all()
 
     return posts
@@ -32,9 +28,7 @@ async def get_all_posts(db: Annotated[AsyncSession, Depends(get_db)]):
 async def get_post(post_id: int, db: Annotated[AsyncSession, Depends(get_db)]):
 
     result = await db.execute(
-        Select(fastapi_blog.models.Post)
-        .where(fastapi_blog.models.Post.id == int(post_id))
-        .options(selectinload(fastapi_blog.models.Post.author))
+        Select(Post).where(Post.id == int(post_id)).options(selectinload(Post.author))
     )
 
     post = result.scalars().first()
@@ -49,19 +43,13 @@ async def get_post(post_id: int, db: Annotated[AsyncSession, Depends(get_db)]):
 @router.post("", response_model=PostResponse, status_code=status.HTTP_201_CREATED)
 async def create_post(post: PostCreate, db: Annotated[AsyncSession, Depends(get_db)]):
 
-    result = await db.execute(
-        Select(fastapi_blog.models.User).where(
-            fastapi_blog.models.User.id == post.user_id
-        )
-    )
+    result = await db.execute(Select(User).where(User.id == post.user_id))
     user = result.scalars().first()
 
     if not user:
         raise HTTPException(404, "User not found")
 
-    new_post = fastapi_blog.models.Post(
-        title=post.title, content=post.content, user_id=post.user_id
-    )
+    new_post = Post(title=post.title, content=post.content, user_id=post.user_id)
 
     db.add(new_post)
     await db.commit()
@@ -78,9 +66,7 @@ async def create_post(post: PostCreate, db: Annotated[AsyncSession, Depends(get_
 async def update_post(
     post_id: int, data: PostUpdate, db: Annotated[AsyncSession, Depends(get_db)]
 ):
-    result = await db.execute(
-        Select(fastapi_blog.models.Post).where(fastapi_blog.models.Post.id == post_id)
-    )
+    result = await db.execute(Select(Post).where(Post.id == post_id))
     post = result.scalars().first()
 
     if not post:
@@ -106,9 +92,7 @@ async def update_post(
 async def update_partial_data_post(
     post_id: int, data: PostUpdate, db: Annotated[AsyncSession, Depends(get_db)]
 ):
-    result = await db.execute(
-        Select(fastapi_blog.models.Post).where(fastapi_blog.models.Post.id == post_id)
-    )
+    result = await db.execute(Select(Post).where(Post.id == post_id))
     post = result.scalars().first()
 
     if not post:
@@ -129,9 +113,7 @@ async def update_partial_data_post(
 # Delete post
 @router.delete("/{post_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_post(post_id: int, db: Annotated[AsyncSession, Depends(get_db)]):
-    result = await db.execute(
-        Select(fastapi_blog.models.Post).where(fastapi_blog.models.Post.id == post_id)
-    )
+    result = await db.execute(Select(Post).where(Post.id == post_id))
     post = result.scalars().first()
 
     if not post:
