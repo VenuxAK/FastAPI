@@ -26,6 +26,8 @@ from fastapi_blog.schemas import (
     UserUpdate,
 )
 
+from fastapi_blog.auth import CurrentUser
+
 router = APIRouter()
 
 router.prefix = "/users"
@@ -35,38 +37,10 @@ router.prefix = "/users"
 @router.get("/me", response_model=UserPrivate)
 async def get_current_user(
     token: Annotated[str, Depends(oauth2_scheme)],
+    current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
-):
-    """Get the currently authenticated user."""
-    user_id = verify_access_token(token)
-    if user_id is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    # Validate user_id is a valid integer (defense against malformed JWT)
-    try:
-        user_id_int = int(user_id)
-    except (TypeError, ValueError):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    result = await db.execute(
-        Select(User).where(User.id == user_id_int),
-    )
-    user = result.scalars().first()
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    return user
+) -> User:
+    return current_user
 
 
 # Get user by id
